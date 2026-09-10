@@ -100,10 +100,8 @@ if not top5_df.empty:
     )
 
     # 주말(토요일, 일요일) 구간 찾아서 배경 음영 추가
-    # 전체 날짜 범주 추출
     unique_dates = pd.date_range(start=df["날짜"].min(), end=df["날짜"].max(), freq="D")
     
-    # 주말 세로 영역 추가 (토요일 00:00 ~ 일요일 23:59 영역 강조)
     for single_date in unique_dates:
         if single_date.weekday() == 5:  # 토요일인 경우
             fig2.add_vrect(
@@ -115,7 +113,6 @@ if not top5_df.empty:
                 layer="below",
             )
 
-    # 마우스 오버 툴팁 및 범례 클릭 설정 (Plotly 기본 기능으로 범례 클릭 시 토글 가능)
     fig2.update_traces(
         hovertemplate="<b>%{fullData.name}</b><br>날짜: %{x|%Y-%m-%d}<br>일관객: %{y:,}명<extra></extra>"
     )
@@ -126,7 +123,6 @@ if not top5_df.empty:
 
     st.plotly_chart(fig2, use_container_width=True)
 
-    # 그래프 해석 문구 자리
     st.info(
         "💡 **이 그래프로 알 수 있는 것:** 흥행 상위 영화들의 흥행 피크 시점 차이와 회색으로 표시된 주말마다 일관객수가 급증하는 박스오피스의 주말 집중 현상을 확인할 수 있습니다."
     )
@@ -134,7 +130,72 @@ if not top5_df.empty:
 st.markdown("---")
 
 # -------------------------------------------------------------------
-# 구역 3: 추후 그래프 추가 구역
+# 구역 3: 날짜별 TOP 10 일관객 합계 (영역 그래프 + Peak 3일 표시)
 # -------------------------------------------------------------------
-st.header("3. 추가 그래프 구역 (예정)")
+st.header("3. 일일 전체 박스오피스(TOP 10) 총 관객수 추이")
+
+# 날짜별 10위권 관객수 합계 계산
+daily_total_df = (
+    df.groupby("날짜")["일관객"]
+    .sum()
+    .reset_index()
+    .sort_values("날짜")
+)
+
+# 합계 관객수가 가장 컸던 상위 3일 추출
+top3_days = daily_total_df.nlargest(3, "일관객").reset_index(drop=True)
+
+if not daily_total_df.empty:
+    # 영역 그래프(Area Chart) 생성
+    fig3 = px.area(
+        daily_total_df,
+        x="날짜",
+        y="일관객",
+        title="일별 TOP 10 전체 관객수 합계 추이 (최고 관객수 상위 3일 강조)",
+        labels={"날짜": "날짜", "일관객": "TOP 10 총 관객수 (명)"},
+    )
+
+    # 상위 3개 피크 날짜에 주석(Annotation) 표시 추가
+    for rank, row in top3_days.iterrows():
+        date_str = row["날짜"].strftime("%Y-%m-%d")
+        audience_count = row["일관객"]
+        
+        fig3.add_annotation(
+            x=row["날짜"],
+            y=audience_count,
+            text=f"<b>#{rank+1}위 Peak</b><br>{date_str}<br>({audience_count:,}명)",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1,
+            arrowwidth=2,
+            arrowcolor="#FF5722",
+            ax=0,
+            ay=-50,
+            bgcolor="#FFF3E0",
+            bordercolor="#FF5722",
+            borderwidth=1,
+            borderpad=4,
+            font=dict(size=11, color="#D84315"),
+        )
+
+    fig3.update_traces(
+        hovertemplate="<b>날짜</b>: %{x|%Y-%m-%d}<br><b>TOP 10 총 관객수</b>: %{y:,}명<extra></extra>",
+        fillcolor="rgba(31, 119, 180, 0.3)",
+        line_color="#1f77b4"
+    )
+    fig3.update_layout(hovermode="x unified")
+
+    st.plotly_chart(fig3, use_container_width=True)
+
+    # 그래프 해석 문구 자리
+    st.info(
+        f"💡 **이 그래프로 알 수 있는 것:** 1년 중 전체 극장가 관객 총합이 가장 많았던 날은 **1위 {top3_days.iloc[0]['날짜'].strftime('%Y-%m-%d')} ({top3_days.iloc[0]['일관객']:,}명)**이며, 명절/연휴나 대작 개봉 시즌 등 극장 전체 시장 규모의 성수기와 비수기 흐름을 한눈에 파악할 수 있습니다."
+    )
+
+st.markdown("---")
+
+# -------------------------------------------------------------------
+# 구역 4: 추후 그래프 추가 구역
+# -------------------------------------------------------------------
+st.header("4. 추가 그래프 구역 (예정)")
 st.caption("앞으로 시간 축 기반의 다양한 그래프가 이곳에 추가될 예정입니다.")
