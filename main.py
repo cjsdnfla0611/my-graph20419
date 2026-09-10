@@ -187,7 +187,6 @@ if not daily_total_df.empty:
 
     st.plotly_chart(fig3, use_container_width=True)
 
-    # 그래프 해석 문구 자리
     st.info(
         f"💡 **이 그래프로 알 수 있는 것:** 1년 중 전체 극장가 관객 총합이 가장 많았던 날은 **1위 {top3_days.iloc[0]['날짜'].strftime('%Y-%m-%d')} ({top3_days.iloc[0]['일관객']:,}명)**이며, 명절/연휴나 대작 개봉 시즌 등 극장 전체 시장 규모의 성수기와 비수기 흐름을 한눈에 파악할 수 있습니다."
     )
@@ -195,7 +194,61 @@ if not daily_total_df.empty:
 st.markdown("---")
 
 # -------------------------------------------------------------------
-# 구역 4: 추후 그래프 추가 구역
+# 구역 4: 기간 내 총 관객수 TOP 10 영화 순위 (가로 막대그래프)
 # -------------------------------------------------------------------
-st.header("4. 추가 그래프 구역 (예정)")
+st.header("4. 기간 내 총 관객수 TOP 10 영화 순위 및 차트인 일수")
+
+# 영화별 총 관객수 및 10위권 진입 일수 집계
+movie_summary = (
+    df.groupby("영화명")
+    .agg(
+        총관객수=("일관객", "sum"),
+        진입일수=("날짜", "nunique")
+    )
+    .reset_index()
+)
+
+# 총 관객수 기준 TOP 10 추출
+top10_summary = movie_summary.nlargest(10, "총관객수")
+
+if not top10_summary.empty:
+    # 가로 막대그래프 생성 (관객수 높은 순으로 상단 배치하기 위해 categoryarray 정렬)
+    fig4 = px.bar(
+        top10_summary,
+        x="총관객수",
+        y="영화명",
+        orientation="h",
+        title="기간 내 총 관객수 TOP 10 영화 (마우스 오버 시 10위권 유지 일수 표시)",
+        labels={"총관객수": "총 관객수 (명)", "영화명": "영화 제목", "진입일수": "10위권 진입 일수"},
+        color="총관객수",
+        color_continuous_scale="Viridis",
+        hover_data={"진입일수": True, "총관객수": ":,"},
+    )
+
+    # 관객수가 가장 많은 영화가 맨 위에 오도록 y축 순서 정렬
+    fig4.update_layout(
+        yaxis={"categoryorder": "total ascending"},
+        coloraxis_showscale=False,  # 색상 바 숨김
+    )
+
+    # 툴팁 형식 커스텀
+    fig4.update_traces(
+        hovertemplate="<b>%{y}</b><br>총 관객수: %{x:,}명<br>10위권 진입 일수: %{customdata[0]}일<extra></extra>"
+    )
+
+    st.plotly_chart(fig4, use_container_width=True)
+
+    # 가장 진입 일수가 긴 영화 추출
+    longest_movie = top10_summary.nlargest(1, "진입일수").iloc[0]
+
+    st.info(
+        f"💡 **이 그래프로 알 수 있는 것:** 해당 기간 최고 흥행작의 순위를 직관적으로 알 수 있으며, 관객수 TOP 10 중 **'{longest_movie['영화명']}'**(이)가 **{longest_movie['진입일수']}일** 동안 10위권을 유지하며 가장 장기 흥행을 기록했음을 확인할 수 있습니다."
+    )
+
+st.markdown("---")
+
+# -------------------------------------------------------------------
+# 구역 5: 추후 그래프 추가 구역
+# -------------------------------------------------------------------
+st.header("5. 추가 그래프 구역 (예정)")
 st.caption("앞으로 시간 축 기반의 다양한 그래프가 이곳에 추가될 예정입니다.")
