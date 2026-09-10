@@ -28,7 +28,7 @@ def load_data():
 df = load_data()
 
 # -------------------------------------------------------------------
-# 구역 1: 영화별 일별 관객수 변화 (선 그래프)
+# 구역 1: 영화별 일별 관객수 변화 (선 그래프 + 주말 표시)
 # -------------------------------------------------------------------
 st.header("1. 개별 영화 일관객수 추이")
 
@@ -49,10 +49,24 @@ if not movie_df.empty:
         movie_df,
         x="날짜",
         y="일관객",
-        title=f"<{selected_movie}> 일별 관객수 변화",
+        title=f"<{selected_movie}> 일별 관객수 변화 (음영 구간: 주말)",
         labels={"날짜": "날짜", "일관객": "일일 관객수 (명)"},
         markers=True,
     )
+
+    # 주말(토요일, 일요일) 구간 찾아서 배경 음영 추가
+    movie_dates = pd.date_range(start=movie_df["날짜"].min(), end=movie_df["날짜"].max(), freq="D")
+    
+    for single_date in movie_dates:
+        if single_date.weekday() == 5:  # 토요일인 경우 (토요일 ~ 일요일 구간 표시)
+            fig1.add_vrect(
+                x0=single_date - pd.Timedelta(days=0.5),
+                x1=single_date + pd.Timedelta(days=1.5),
+                fillcolor="gray",
+                opacity=0.15,
+                line_width=0,
+                layer="below",
+            )
 
     # 마우스 오버(툴팁) 레이아웃 설정
     fig1.update_traces(
@@ -62,9 +76,9 @@ if not movie_df.empty:
 
     st.plotly_chart(fig1, use_container_width=True)
 
-    # 그래프 해석 문구 자리
+    # 1번 구역 해석 문구
     st.info(
-        "💡 **이 그래프로 알 수 있는 것:** 특정 영화의 개봉 후 관객수 증감 추이와 주말/평일 관객수 차이를 한눈에 파악할 수 있습니다."
+        "💡 **이 그래프로 알 수 있는 것:** 평일 주말에 따른 그래프 모양변화, 그래프 추세를 알수있다."
     )
 else:
     st.warning("선택한 영화의 데이터가 없습니다.")
@@ -123,8 +137,9 @@ if not top5_df.empty:
 
     st.plotly_chart(fig2, use_container_width=True)
 
+    # 요청하신 2번 구역 해석 문구 반영
     st.info(
-        "💡 **이 그래프로 알 수 있는 것:** 흥행 상위 영화들의 흥행 피크 시점 차이와 회색으로 표시된 주말마다 일관객수가 급증하는 박스오피스의 주말 집중 현상을 확인할 수 있습니다."
+        "💡 **이 그래프로 알 수 있는 것:** 공통적으로 주말에 관람객이 증가하는 추세를 알수있다."
     )
 
 st.markdown("---")
@@ -212,7 +227,7 @@ movie_summary = (
 top10_summary = movie_summary.nlargest(10, "총관객수")
 
 if not top10_summary.empty:
-    # 가로 막대그래프 생성 (관객수 높은 순으로 상단 배치하기 위해 categoryarray 정렬)
+    # 가로 막대그래프 생성
     fig4 = px.bar(
         top10_summary,
         x="총관객수",
@@ -225,20 +240,17 @@ if not top10_summary.empty:
         hover_data={"진입일수": True, "총관객수": ":,"},
     )
 
-    # 관객수가 가장 많은 영화가 맨 위에 오도록 y축 순서 정렬
     fig4.update_layout(
         yaxis={"categoryorder": "total ascending"},
-        coloraxis_showscale=False,  # 색상 바 숨김
+        coloraxis_showscale=False,
     )
 
-    # 툴팁 형식 커스텀
     fig4.update_traces(
         hovertemplate="<b>%{y}</b><br>총 관객수: %{x:,}명<br>10위권 진입 일수: %{customdata[0]}일<extra></extra>"
     )
 
     st.plotly_chart(fig4, use_container_width=True)
 
-    # 가장 진입 일수가 긴 영화 추출
     longest_movie = top10_summary.nlargest(1, "진입일수").iloc[0]
 
     st.info(
