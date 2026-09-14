@@ -58,7 +58,7 @@ if not movie_df.empty:
     movie_dates = pd.date_range(start=movie_df["날짜"].min(), end=movie_df["날짜"].max(), freq="D")
     
     for single_date in movie_dates:
-        if single_date.weekday() == 5:  # 토요일인 경우 (토요일 ~ 일요일 구간 표시)
+        if single_date.weekday() == 5:  # 토요일인 경우
             fig1.add_vrect(
                 x0=single_date - pd.Timedelta(days=0.5),
                 x1=single_date + pd.Timedelta(days=1.5),
@@ -137,7 +137,7 @@ if not top5_df.empty:
 
     st.plotly_chart(fig2, use_container_width=True)
 
-    # 요청하신 2번 구역 해석 문구 반영
+    # 2번 구역 해석 문구
     st.info(
         "💡 **이 그래프로 알 수 있는 것:** 공통적으로 주말에 관람객이 증가하는 추세를 알수있다."
     )
@@ -260,7 +260,60 @@ if not top10_summary.empty:
 st.markdown("---")
 
 # -------------------------------------------------------------------
-# 구역 5: 추후 그래프 추가 구역
+# 구역 5: 월×요일별 일관객 합계 히트맵
 # -------------------------------------------------------------------
-st.header("5. 추가 그래프 구역 (예정)")
-st.caption("앞으로 시간 축 기반의 다양한 그래프가 이곳에 추가될 예정입니다.")
+st.header("5. 월×요일별 관객수 집계 (히트맵)")
+
+# 월, 요일 추출 및 요일 순서 정렬
+df_heatmap = df.copy()
+df_heatmap["월"] = df_heatmap["날짜"].dt.month.astype(str) + "월"
+
+# 요일명 추출 및 월요일~일요일 순서 정의
+days_order = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
+day_mapping = {
+    0: "월요일",
+    1: "화요일",
+    2: "수요일",
+    3: "목요일",
+    4: "금요일",
+    5: "토요일",
+    6: "일요일",
+}
+df_heatmap["요일"] = df_heatmap["날짜"].dt.weekday.map(day_mapping)
+
+# 피벗 테이블 생성 (월 x 요일별 관객수 합계)
+pivot_df = df_heatmap.pivot_table(
+    index="월", columns="요일", values="일관객", aggfunc="sum"
+)
+
+# 월 순서 (1월~12월) 및 요일 순서 (월~일) 재정렬
+month_order = [f"{m}월" for m in range(1, 13) if f"{m}월" in pivot_df.index]
+pivot_df = pivot_df.reindex(index=month_order, columns=days_order)
+
+if not pivot_df.empty:
+    # Plotly 히트맵 생성 (색상이 진할수록 관객수 많음: Blues 스케일)
+    fig5 = px.imshow(
+        pivot_df,
+        labels=dict(x="요일", y="월", color="총 관객수 (명)"),
+        x=days_order,
+        y=month_order,
+        color_continuous_scale="Blues",
+        title="월×요일별 일관객 합계 히트맵",
+        text_auto=",d",  # 관객수 천 단위 콤마 자동 서식
+    )
+
+    fig5.update_layout(
+        xaxis_title="요일",
+        yaxis_title="월",
+        coloraxis_colorbar=dict(title="총 관객수"),
+    )
+
+    fig5.update_traces(
+        hovertemplate="<b>%{y} %{x}</b><br>총 관객수: %{z:,}명<extra></extra>"
+    )
+
+    st.plotly_chart(fig5, use_container_width=True)
+
+    st.info(
+        "💡 **이 그래프로 알 수 있는 것:** 각 월별로 어떤 요일에 관객이 집중되는지, 연중 극장 성수기(여름·겨울 방학 및 연휴 시즌)와 특정 요일(주말)의 시너지 효과를 직관적으로 파악할 수 있습니다."
+    )
